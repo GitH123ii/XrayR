@@ -8,14 +8,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
 
-	"log"
-
-	"bou.ke/monkey"
-	"github.com/go-acme/lego/v4/cmd"
+	"github.com/XrayR-project/XrayR/common/legocmd/cmd"
 	"github.com/urfave/cli"
 )
 
@@ -24,16 +20,6 @@ var defaultPath string
 
 type LegoCMD struct {
 	cmdClient *cli.App
-}
-
-func fakeLogFatalf(_ *log.Logger, format string, v ...interface{}) {
-	log.Panicf(format, v...)
-	return
-}
-
-func fakeLogFatal(_ *log.Logger, v ...interface{}) {
-	log.Panic(v...)
-	return
 }
 
 func New() (*LegoCMD, error) {
@@ -68,6 +54,21 @@ func New() (*LegoCMD, error) {
 
 // DNSCert cert a domain using DNS API
 func (l *LegoCMD) DNSCert(domain, email, provider string, DNSEnv map[string]string) (CertPath string, KeyPath string, err error) {
+	defer func() (string, string, error) {
+		// Handle any error
+		if r := recover(); r != nil {
+			switch x := r.(type) {
+			case string:
+				err = errors.New(x)
+			case error:
+				err = x
+			default:
+				err = errors.New("unknow panic")
+			}
+			return "", "", err
+		}
+		return CertPath, KeyPath, nil
+	}()
 	// Set Env for DNS configuration
 	for key, value := range DNSEnv {
 		os.Setenv(key, value)
@@ -92,12 +93,26 @@ func (l *LegoCMD) DNSCert(domain, email, provider string, DNSEnv map[string]stri
 
 // HTTPCert cert a domain using http methods
 func (l *LegoCMD) HTTPCert(domain, email string) (CertPath string, KeyPath string, err error) {
+	defer func() (string, string, error) {
+		// Handle any error
+		if r := recover(); r != nil {
+			switch x := r.(type) {
+			case string:
+				err = errors.New(x)
+			case error:
+				err = x
+			default:
+				err = errors.New("unknow panic")
+			}
+			return "", "", err
+		}
+		return CertPath, KeyPath, nil
+	}()
 	// First check if the certificate exists
 	CertPath, KeyPath, err = checkCertfile(domain)
 	if err == nil {
 		return CertPath, KeyPath, err
 	}
-
 	argstring := fmt.Sprintf("lego -a -d %s -m %s --http run", domain, email)
 	err = l.cmdClient.Run(strings.Split(argstring, " "))
 
@@ -114,11 +129,7 @@ func (l *LegoCMD) HTTPCert(domain, email string) (CertPath string, KeyPath strin
 //RenewCert renew a domain cert
 func (l *LegoCMD) RenewCert(domain, email, certMode, provider string, DNSEnv map[string]string) (CertPath string, KeyPath string, err error) {
 	var argstring string
-	// Patch the log.Fatal and log.Fatalf incase of the lego.cmd exit the program
-	monkey.PatchInstanceMethod(reflect.TypeOf(log.New(os.Stdout, "", log.LstdFlags)), "Fatalf", fakeLogFatalf)
-	monkey.PatchInstanceMethod(reflect.TypeOf(log.New(os.Stdout, "", log.LstdFlags)), "Fatal", fakeLogFatal)
 	defer func() (string, string, error) {
-		monkey.UnpatchAll()
 		// Handle any error
 		if r := recover(); r != nil {
 			switch x := r.(type) {
