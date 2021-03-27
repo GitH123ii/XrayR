@@ -3,6 +3,7 @@ module github.com/XrayR-project/XrayR
 go 1.16
 
 require (
+	bou.ke/monkey v1.0.2 // indirect
 	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.9
